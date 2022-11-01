@@ -4,8 +4,6 @@ Created on Thu Apr  7 11:05:20 2022
 
 @author: adalt043
 """
- # test
-
 
 # -----------------------------------------------------------------------------
 # Load libraries
@@ -30,7 +28,7 @@ from shapely.geometry import Point
 
 # Abby
 path_data = ""
-path_figures = 'D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/plots/'
+path_figures = 'C:/Users/CRYO/Documents/paper_2/working_files/plots/seasonal_panels/'
 
 # -----------------------------------------------------------------------------
 # Library configuration
@@ -38,24 +36,17 @@ path_figures = 'D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Ice
 
 # Add Natural Earth coastline
 coast = cfeature.NaturalEarthFeature(
-    "physical", "land", "10m", edgecolor="black", facecolor="lightgray", lw=0.75
+    "physical", "land", "10m", edgecolor="darkgrey", facecolor="lightgray", lw=0.75
 )
 
 # Add Natural Earth coastline
 coastline = cfeature.NaturalEarthFeature(
-    "physical", "coastline", "10m", edgecolor="black", facecolor="none", lw=0.75
+    "physical", "coastline", "10m", edgecolor="none", facecolor="none", lw=0.75
 )
 
 # Configure Seaborn styles
 sns.set_theme(style="ticks")
 sns.set_context("paper")  # Options: talk, paper, poster
-
-# Optional legend box outline
-# plt.rc("legend", fancybox=False, framealpha=1, edgecolor="k")
-
-# Set colour palette
-# colour = ["red", "lime", "blue", "magenta", "cyan", "yellow"]
-# sns.set_palette(colour)
 sns.set_palette("turbo")
 
 # -----------------------------------------------------------------------------
@@ -64,13 +55,31 @@ sns.set_palette("turbo")
 # -----------------------------------------------------------------------------
 
 # Set grid extents - utm mercator values to set corners in m
-xmin = 6000000
-ymin = 1900000
-xmax = 9500000
-ymax = 5000000
+# # Baffin Bay
+# xmin = 6000000
+# ymin = 1900000
+# xmax = 9500000
+# ymax = 5000000
+
+# Talbot Inlet
+xmin = 6511830
+ymin = 4589610
+xmax = 6576320
+ymax = 4652510
+
+# # Smith Sound
+# xmin = 6517500
+# ymin = 4299300
+# xmax = 6691800
+# ymax = 4752700
+
 
 # Cell size
-cell_size = 50000  # cell size in m needs to be divisible by extents above
+# Baffin Bay
+# cell_size = 50000  # cell size in m needs to be divisible by extents above
+
+# Talbot Inlet
+cell_size = 2000  # cell size in m needs to be divisible by extents above
 
 # Create the cells in a loop
 grid_cells = []
@@ -87,8 +96,6 @@ grid = gpd.GeoDataFrame(grid_cells, columns=["geometry"], crs="epsg:3347")
 grid["coords"] = grid["geometry"].apply(lambda x: x.representative_point().coords[:])
 grid["coords"] = [coords[0] for coords in grid["coords"]]
 
-# Optional: Output grid to shapefile
-#grid.to_file("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/grid_cell_analysis/100_km_grid.shp")
 
 # -----------------------------------------------------------------------------
 # Plot grid
@@ -103,7 +110,7 @@ grid.plot(
     legend=True,
 )
 
-# Observe distortion of grid with WGS84 (EPSG 4326) projection
+# Observe distortion of grid with WGS84 (EPSG 4326) projection -- 
 fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 grid.to_crs(4326).plot(
     edgecolor="black",
@@ -117,14 +124,13 @@ grid.to_crs(4326).plot(
 # ----------------------------------------------------------------------------
 
 # Load database
-df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_filtered_03312022.csv",
+df = pd.read_csv("C:/Users/CRYO/Documents/paper_2/working_files/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_09272022_clean_TALBOT.csv",
     index_col=None,
 )
 
 # Convert to datetime
 df["datetime_data"] = pd.to_datetime(
-    df["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S"
-)
+    df["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
 
 #Create year, month, day columns
 df['day'] = df['datetime_data'].dt.day
@@ -147,36 +153,47 @@ seasons = {12: 'Winter',
 
 df['Season'] = df['month'].apply(lambda x: seasons[x])
 
+
 # ----------------------------------------------------------------------------
 # Create geodataframe
 # ----------------------------------------------------------------------------
 
 # Create GeoDataFrame
-# gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon_model, df.lat_model), crs='epsg:4326') # Depracated?
 geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
 gdf = GeoDataFrame(df, crs="epsg:4326", geometry=geometry)
 
 # Reproject data to EPSG 3347
 gdf = gdf.to_crs(epsg=3347)
 
-# Spatial join grid with points
-spatial_joined = gpd.sjoin(gdf, grid, how="left", predicate="within")
+# Spatial join grid with points (call this spatial_joined if selecting season)
+joined = gpd.sjoin(gdf, grid, how="left", predicate="within")
+
+# spatial_joined['beacon_id'].nunique()
 
 # ----------------------------------------------------------------------------
 # Calculate grid cell statistics
 # ----------------------------------------------------------------------------
 
-#Select Season (optional)
-joined = spatial_joined.loc[spatial_joined['Season'] == "Spring"]
+# Select season (optional)
+# joined = spatial_joined.loc[spatial_joined['Season'] == "Winter"]
 
-#Print # of unique beacon IDs in each season
+joined['datetime_data'].min()
+joined['datetime_data'].max()
+
+# Print # of unique beacon IDs in each season
 beacon_count = joined["beacon_id"].nunique()
+
+joined['beacon_type'].nunique()
 
 # Summarize the stats for each attribute in the point layer - speed
 stats_speed = joined.groupby(["index_right"])["speed_ms"].agg(
-    ["median"]
+    ["median", 'max']
 )
 stats_speed.rename(columns={'median':'median_speed'}, inplace=True)
+stats_speed.rename(columns={'max':'max_speed'}, inplace=True)
+
+# Filter speeds out that are > 2 m/s
+#stats_speed = stats_speed[(stats_speed['max_speed'] <= 2)]
 
 # Summarize the stats for each attribute in the point layer - residence time
 stats_res_time = joined.groupby(["index_right"])["speed_ms"].agg(
@@ -212,35 +229,14 @@ merged = pd.merge(merged, stats_res_time, left_index=True, right_index=True, how
 merged = pd.merge(merged, stats_dir, left_index=True, right_index=True, how="outer")
 merged = merged.dropna()
 
+stats_res_time['diff_days'].max()
+stats_speed['median_speed'].max()
+
 # -----------------------------------------------------------------------------
-# Plot map - grid cells
+# Prepare quiver plot data
 # -----------------------------------------------------------------------------
 
-# Get max values for colorbar normalization
-#norm_max = np.nanmax(stats_long["mean"])
-
-# Normalize colourbar
-# Note: Can be set to norm_max or specified manually
-norm_speed = mpl.colors.Normalize(vmin=0, vmax=1.5)
-norm_res = mpl.colors.Normalize(vmin=0, vmax=200)
-cmap = cm.get_cmap("turbo", 100)
-
-# Set extents all of Canada
-# extents = [-95, -60, 40, 85]
-
-# Zoom to Baffin Island
-# extents = [-80, -60, 60, 75]
-
-# Zoom to Baffin Bay
-extents = [-83, -50, 50, 83]
-
-# Set figure DPI
-dpi = 500
-
-# Set map projection
-proj = ccrs.epsg(3347)
-
-# Prepare data
+# Get centroids of cells
 merged["latitude"] = merged.centroid.y
 merged["longitude"] = merged.centroid.x
 
@@ -252,25 +248,70 @@ y = merged['latitude'].values
 u = merged['u_drift'].values
 v = merged['v_drift'].values
 
+# -----------------------------------------------------------------------------
+# Plot map - grid cells
+# -----------------------------------------------------------------------------
+
+# Get max values for colorbar normalization
+#norm_max = np.nanmax(stats_long["mean"])
+
+# Normalize colourbar
+# Note: Can be set to norm_max or specified manually
+norm_speed = mpl.colors.Normalize(vmin=0, vmax=0.5)
+norm_res = mpl.colors.Normalize(vmin=0, vmax=325) # change based on residence time avg
+cmap = cm.get_cmap("plasma_r", 100)
+
+# Zoom to Baffin Bay
+# extents = [-83, -60, 55, 83]
+
+# Zoom to Talbot Inlet
+extents = [-78.5, -76.2, 77.7, 78]
+# extents = [-78.5, -76, 77.7, 78]
+
+# Zoom to Smith Sound
+# extents = [-79, -70, 75, 78]
+
+# Set figure DPI
+dpi = 300
+
+# Set map projection
+proj = ccrs.epsg(3347)
+
 # Plot figures (N = 11,6) (S = 13.5)
 fig, axs = plt.subplots(
-    2, 2, figsize=(14, 12), constrained_layout=True, subplot_kw={"projection": proj},
+    2, 2, figsize=(12.5, 12), constrained_layout=True, subplot_kw={"projection": proj},   #(12.5, 12)
 )
-fig.suptitle('Spring n = %i' % beacon_count, fontsize=16) # Change according to season selected above
+params = {'mathtext.default': 'regular' }   
+plt.rcParams.update(params)
+font = {'size'   : 12,
+        'weight' : 'normal'}
+mpl.rc('font', **font)
+
+# fig.suptitle('Winter n = %i' % beacon_count, fontsize=16) # Change according to season selected above
+# fig.suptitle('Talbot Inlet', fontsize=16) # Change according to season selected above
 
 # Drift tracks
 
 axs[0, 0].add_feature(coast)
-axs[0, 0].set_extent([-80, -60, 60, 75])
-axs[0, 0].set(box_aspect=1)
-axs[0, 0].set_title('Iceberg Tracks', fontsize = 12)
+axs[0, 0].set_extent(extents)
+# axs[0, 0].set(box_aspect=1) # 1
+# axs[0, 0].set_title('A',y=1, pad=-13, fontsize = 12, loc='right')
+axs[0,0].annotate('A', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=12,
+                    weight='bold')
 axs[0, 0].scatter(
-    x = 'longitude',
+    x ='longitude',
     y = 'latitude', 
     data = joined,
     marker='.',
     s = 2,
-    color='red',
+    # color='firebrick',
+    c = joined.beacon_id.astype('category').cat.codes,
+    cmap=cmap,
     transform=ccrs.PlateCarree()
 )
 gl_1 = axs[0, 0].gridlines(
@@ -287,9 +328,16 @@ gl_1.rotate_labels = False
 # Speed
 
 axs[0, 1].add_feature(coast)
-axs[0, 1].set_extent([-80, -60, 60, 75])
-axs[0, 1].set(box_aspect=1)
-axs[0, 1].set_title('Median Speed (m/s)', fontsize = 12)
+axs[0, 1].set_extent(extents)
+# axs[0, 1].set(box_aspect=1)
+# axs[0, 1].set_title('Median Speed (m/s)', fontsize = 12)
+axs[0,1].annotate('B', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=12,
+                    weight='bold')
 p2 = merged.plot(
     column="median_speed",
     cmap=cmap,
@@ -309,14 +357,23 @@ gl_2.top_labels = False
 gl_2.right_labels = False
 gl_2.rotate_labels = False
 
-fig.colorbar(cm.ScalarMappable(norm=norm_speed, cmap=cmap), ax=axs[0, 1], shrink=0.8)
+cb = fig.colorbar(cm.ScalarMappable(norm=norm_speed, cmap=cmap), ax=axs[0, 1], shrink=0.625, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.625 for talbot
+cb.ax.tick_params(labelsize=12)
+cb.ax.set_ylabel('Speed (m $s^{-1}$)',fontsize=14,rotation=90)
 
 # Direction
 
 axs[1, 0].add_feature(coast)
-axs[1, 0].set_extent([-80, -60, 60, 75])
-axs[1, 0].set(box_aspect=1)
-axs[1, 0].set_title('Mean Drift Direction', fontsize = 12)
+axs[1, 0].set_extent(extents)
+axs[1,0].annotate('C', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=12,
+                    weight='bold')
+# axs[1, 0].set(box_aspect=1)
+# axs[1, 0].set_title('Mean Drift Direction', fontsize = 12)
 
 gl_3 = axs[1, 0].gridlines(
     crs=ccrs.PlateCarree(),
@@ -328,14 +385,21 @@ gl_3 = axs[1, 0].gridlines(
 gl_3.top_labels = False
 gl_3.right_labels = False
 gl_3.rotate_labels = False
-axs[1, 0].quiver(x, y, u, v, color="blue", linewidth = 0.5)
+axs[1, 0].quiver(x, y, u, v, color="indigo", linewidth = 0.5)
 
 # Residence Time
 
 axs[1, 1].add_feature(coast)
-axs[1, 1].set_extent([-80, -60, 60, 75])
-axs[1, 1].set(box_aspect=1)
-axs[1, 1].set_title('Mean Residence Time (days)', fontsize = 12)
+axs[1, 1].set_extent(extents)
+axs[1,1].annotate('D', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=12,
+                    weight='bold')
+# axs[1, 1].set(box_aspect=1)
+# axs[1, 1].set_title('Mean Residence Time (days)', fontsize = 12)
 p3 = merged.plot(
     column="diff_days",
     cmap=cmap,
@@ -355,12 +419,15 @@ gl_4.top_labels = False
 gl_4.right_labels = False
 gl_4.rotate_labels = False
 
-fig.colorbar(cm.ScalarMappable(norm=norm_res, cmap=cmap), ax=axs[1, 1], shrink=0.8)
+cb = fig.colorbar(cm.ScalarMappable(norm=norm_res, cmap=cmap), ax=axs[1, 1], shrink=0.625, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.625 for talbot
+cb.ax.tick_params(labelsize=12)
+cb.ax.set_ylabel('Residence Time (days)',fontsize=14,rotation=90)
 
 
-
-
-
-
-
-
+# Save figure
+fig.savefig(
+    path_figures + "talbot.png",
+    dpi=dpi,
+    transparent=False,
+    bbox_inches="tight",
+)
