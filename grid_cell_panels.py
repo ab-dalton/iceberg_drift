@@ -119,7 +119,7 @@ grid.to_crs(4326).plot(
 # ----------------------------------------------------------------------------
 
 # Load database
-df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_filtered_08312022_clean.csv",
+df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_09272022_clean_TALBOT.csv",
     index_col=None,
 )
 
@@ -187,10 +187,11 @@ joined['beacon_type'].nunique()
 
 # Summarize the stats for each attribute in the point layer - speed
 stats_speed = joined.groupby(["index_right"])["speed_ms"].agg(
-    ["median", 'max']
+    ["median", 'max', 'std']
 )
 stats_speed.rename(columns={'median':'median_speed'}, inplace=True)
 stats_speed.rename(columns={'max':'max_speed'}, inplace=True)
+stats_speed.rename(columns={'std':'std_speed'}, inplace=True)
 
 # Filter speeds out that are > 2 m/s
 #stats_speed = stats_speed[(stats_speed['max_speed'] <= 2)]
@@ -222,6 +223,12 @@ stats_dir = joined.groupby(["index_right"])["azimuth_obs"].agg(
 # Convert azimuth angle to x y coordinates for plotting vectors
 stats_dir["u_drift"] = 1 * np.sin(np.radians(stats_dir['mean']))
 stats_dir["v_drift"] = 1 * np.cos(np.radians(stats_dir['mean']))
+
+# Group by grid cells and count number of observations in each group
+n_obs = joined.groupby("index_right").size()
+
+# Add the counts as a new column in the grid dataframe
+stats_speed["n_obs"] = n_obs.values
 
 # Merge dataframes to add statistics to the polygon layer
 merged = pd.merge(grid, stats_speed, left_index=True, right_index=True, how="outer")
@@ -261,9 +268,12 @@ v = merged['v_drift'].values
 # Note: Can be set to norm_max or specified manually
 norm_speed = mpl.colors.Normalize(vmin=0, vmax=0.5)
 norm_res = mpl.colors.Normalize(vmin=0, vmax=200) # change based on residence time avg
+norm_obs = mpl.colors.Normalize(vmin=0, vmax=500)
+norm_std = mpl.colors.Normalize(vmin=0, vmax=0.3)
 cmap = cm.get_cmap("plasma", 100)
 speed_cmap = cm.get_cmap("plasma_r", 10)
 res_cmap = cm.get_cmap("plasma_r", 20)
+
 
 # Zoom to Baffin Bay
 # extents = [-83, -60, 55, 83]
@@ -283,7 +293,7 @@ proj = ccrs.epsg(3347)
 
 # Plot figures (N = 11,6) (S = 13.5)
 fig, axs = plt.subplots(
-    2, 2, figsize=(12.5, 8.5), constrained_layout=True, subplot_kw={"projection": proj},   #(12.5, 12) for baffin
+    2, 3, figsize=(18.75, 12.75), constrained_layout=True, subplot_kw={"projection": proj},   #(12.5, 12) for baffin
 )
 params = {'mathtext.default': 'regular' }   
 plt.rcParams.update(params)
@@ -294,7 +304,7 @@ mpl.rc('font', **font)
 # fig.suptitle('Winter n = %i' % beacon_count, fontsize=16) # Change according to season selected above
 # fig.suptitle('Talbot Inlet', fontsize=16) # Change according to season selected above
 
-# Drift tracks
+## Drift tracks
 
 axs[0, 0].add_feature(coast)
 axs[0, 0].set_extent(extents)
@@ -307,6 +317,14 @@ axs[0,0].annotate('A', (1, 1),
                     ha='right', va='top',
                     fontsize=14,
                     weight='bold')
+axs[0,0].annotate('Easter\nIsland', (0.41, 0.44),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=14,
+                    weight='bold',
+                    zorder=5)
 axs[0, 0].scatter(
     x ='longitude',
     y = 'latitude', 
@@ -333,52 +351,12 @@ gl_1.top_labels = False
 gl_1.right_labels = False
 gl_1.rotate_labels = False
 rgi_talbot.plot(color='white',ax=axs[0,0],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
-        
-# Speed
 
-axs[0, 1].add_feature(coast)
-axs[0, 1].set_extent(extents)
-# axs[0, 1].set(box_aspect=1)
-# axs[0, 1].set_title('Median Speed (m/s)', fontsize = 12)
-axs[0,1].annotate('B', (1, 1),
-                    xytext=(-5,-5),
-                    xycoords='axes fraction',
-                    textcoords='offset points',
-                    ha='right', va='top',
-                    fontsize=14,
-                    weight='bold')
-axs[0,1].set_facecolor('#D6EAF8')
-p2 = merged.plot(
-    column="median_speed",
-    cmap=speed_cmap,
-    norm=norm_speed,
-    edgecolor="black",
-    lw=0.5, legend=False,
-    ax=axs[0 ,1]
-)
-gl_2 = axs[0, 1].gridlines(
-    crs=ccrs.PlateCarree(),
-    draw_labels=True,
-    color="black",
-    alpha=0.25,
-    linestyle="dotted",
-    zorder=5
-)
-for k, spine in axs[0,1].spines.items():  #ax.spines is a dictionary
-    spine.set_zorder(10)
-gl_2.top_labels = False
-gl_2.right_labels = False
-gl_2.rotate_labels = False
-rgi_talbot.plot(color='white',ax=axs[0,1],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
-cb = fig.colorbar(cm.ScalarMappable(norm=norm_speed, cmap=speed_cmap), ax=axs[0, 1], shrink=0.8, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.9 for talbot
-cb.ax.tick_params(labelsize=12)
-cb.ax.set_ylabel('Speed (m $s^{-1}$)',fontsize=14,rotation=90)
-
-# Direction
+## Direction
 
 axs[1, 0].add_feature(coast)
 axs[1, 0].set_extent(extents)
-axs[1,0].annotate('C', (1, 1),
+axs[1, 0].annotate('D', (1, 1),
                     xytext=(-5,-5),
                     xycoords='axes fraction',
                     textcoords='offset points',
@@ -404,12 +382,93 @@ gl_3.right_labels = False
 gl_3.rotate_labels = False
 axs[1, 0].quiver(x, y, u, v, color="indigo", linewidth = 0.5)
 rgi_talbot.plot(color='white',ax=axs[1,0],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
+        
+## Speed - median
 
-# Residence Time
+axs[0, 2].add_feature(coast)
+axs[0, 2].set_extent(extents)
+# axs[0, 1].set(box_aspect=1)
+# axs[0, 1].set_title('Median Speed (m/s)', fontsize = 12)
+axs[0, 2].annotate('C', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=14,
+                    weight='bold')
+axs[0,2].set_facecolor('#D6EAF8')
+p2 = merged.plot(
+    column="median_speed",
+    cmap=speed_cmap,
+    norm=norm_speed,
+    edgecolor="black",
+    lw=0.5, legend=False,
+    ax=axs[0 ,2]
+)
+gl_2 = axs[0, 2].gridlines(
+    crs=ccrs.PlateCarree(),
+    draw_labels=True,
+    color="black",
+    alpha=0.25,
+    linestyle="dotted",
+    zorder=5
+)
+for k, spine in axs[0, 2].spines.items():  #ax.spines is a dictionary
+    spine.set_zorder(10)
+gl_2.top_labels = False
+gl_2.right_labels = False
+gl_2.rotate_labels = False
+rgi_talbot.plot(color='white',ax=axs[0, 2],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
+cb = fig.colorbar(cm.ScalarMappable(norm=norm_speed, cmap=speed_cmap), ax=axs[0, 2], shrink=0.5, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.9 for talbot
+cb.ax.tick_params(labelsize=12)
+cb.ax.set_ylabel('Speed (m $s^{-1}$)',fontsize=14,rotation=90)
+
+## Speed - std
+
+axs[1, 2].add_feature(coast)
+axs[1, 2].set_extent(extents)
+# axs[0, 1].set(box_aspect=1)
+# axs[0, 1].set_title('Median Speed (m/s)', fontsize = 12)
+axs[1, 2].annotate('F', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=14,
+                    weight='bold')
+axs[1, 2].set_facecolor('#D6EAF8')
+p2 = merged.plot(
+    column="std_speed",
+    cmap=speed_cmap,
+    norm=norm_std,
+    edgecolor="black",
+    lw=0.5, legend=False,
+    ax=axs[1, 2]
+)
+gl_2 = axs[1, 2].gridlines(
+    crs=ccrs.PlateCarree(),
+    draw_labels=True,
+    color="black",
+    alpha=0.25,
+    linestyle="dotted",
+    zorder=5
+)
+for k, spine in axs[1, 2].spines.items():  #ax.spines is a dictionary
+    spine.set_zorder(10)
+gl_2.top_labels = False
+gl_2.right_labels = False
+gl_2.rotate_labels = False
+rgi_talbot.plot(color='white',ax=axs[1, 2],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
+cb = fig.colorbar(cm.ScalarMappable(norm=norm_std, cmap=speed_cmap), ax=axs[1, 2], shrink=0.5, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.9 for talbot
+cb.ax.tick_params(labelsize=12)
+cb.ax.set_ylabel('Speed (m $s^{-1}$)',fontsize=14,rotation=90)
+
+
+## Residence Time
 
 axs[1, 1].add_feature(coast)
 axs[1, 1].set_extent(extents)
-axs[1,1].annotate('D', (1, 1),
+axs[1, 1].annotate('E', (1, 1),
                     xytext=(-5,-5),
                     xycoords='axes fraction',
                     textcoords='offset points',
@@ -442,9 +501,50 @@ gl_4.right_labels = False
 gl_4.rotate_labels = False
 rgi_talbot.plot(color='white',ax=axs[1,1],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
 
-cb = fig.colorbar(cm.ScalarMappable(norm=norm_res, cmap=res_cmap), ax=axs[1, 1], shrink=0.8, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.9 for talbot
+cb = fig.colorbar(cm.ScalarMappable(norm=norm_res, cmap=res_cmap), ax=axs[1, 1], shrink=0.5, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.9 for talbot
 cb.ax.tick_params(labelsize=12)
 cb.ax.set_ylabel('Residence Time (days)',fontsize=14,rotation=90)
+
+## Number of Observations
+
+axs[0, 1].add_feature(coast)
+axs[0, 1].set_extent(extents)
+axs[0, 1].annotate('B', (1, 1),
+                    xytext=(-5,-5),
+                    xycoords='axes fraction',
+                    textcoords='offset points',
+                    ha='right', va='top',
+                    fontsize=14,
+                    weight='bold')
+# axs[1, 1].set(box_aspect=1)
+# axs[1, 1].set_title('Mean Residence Time (days)', fontsize = 12)
+p3 = merged.plot(
+    column="n_obs",
+    cmap=res_cmap,
+    norm=norm_res,
+    edgecolor="black",
+    lw=0.5, legend=False,
+    ax=axs[0 ,1]
+)
+axs[0, 1].set_facecolor('#D6EAF8')
+gl_4 = axs[0, 1].gridlines(
+    crs=ccrs.PlateCarree(),
+    draw_labels=True,
+    color="black",
+    alpha=0.25,
+    linestyle="dotted",
+    zorder=5
+)
+for k, spine in axs[0, 1].spines.items():  #ax.spines is a dictionary
+    spine.set_zorder(10)
+gl_4.top_labels = False
+gl_4.right_labels = False
+gl_4.rotate_labels = False
+rgi_talbot.plot(color='white',ax=axs[0,1],edgecolor='lightgrey', transform=ccrs.epsg('3995'),zorder=4)
+
+cb = fig.colorbar(cm.ScalarMappable(norm=norm_obs, cmap=res_cmap), ax=axs[0, 1], shrink=0.5, orientation='vertical') #shrink = 0.8 for Baffin Bay plots when box_aspect=1, 0.9 for talbot
+cb.ax.tick_params(labelsize=12)
+cb.ax.set_ylabel('Number of Observations',fontsize=14,rotation=90)
 
 
 # Save figure
