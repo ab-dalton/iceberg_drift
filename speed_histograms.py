@@ -15,12 +15,14 @@ import matplotlib as mpl
 # -----------------------------------------------------------------------------
     
 # Load most recent Iceberg Beacon Database output file
-df = pd.read_csv('D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_filtered_08312022_clean.csv', index_col=False)
+df = pd.read_csv('D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_17032023_no_talbot.csv', index_col=False)
 
 # Convert to datetime
 df["datetime_data"] = pd.to_datetime(df["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
 
 path_figures = "D:/Abby/paper_2/plots/"
+
+df['beacon_id'].nunique()
 
 
 #Create year, month, day columns

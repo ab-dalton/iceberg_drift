@@ -38,7 +38,7 @@ seaice_path = "D:/Abby/paper_2/sea_ice/netcdf_daily/"
 # -----------------------------------------------------------------------------
 
 df = pd.read_csv(
-    "D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_filtered_08312022_clean.csv",
+    'D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_17032023_no_talbot.csv',
     index_col=False,
 )
 
@@ -52,7 +52,7 @@ dimensions = [83, -83, 53, -60]
 
 # Create start and end dates
 start_date = "2011-01-01 00:00:00"
-end_date = "2019-12-31 23:00:00"
+end_date = "2020-01-01 00:00:00"
 
 
 # -----------------------------------------------------------------------------
@@ -238,7 +238,7 @@ df['seaice_direction_deg'] = np.mod(90-np.rad2deg(df['seaice_direction']),360)
 # Save dataframe as csv
 # -----------------------------------------------------------------------------
 
-df.to_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_09122022.csv")
+df.to_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv")
 
 
 

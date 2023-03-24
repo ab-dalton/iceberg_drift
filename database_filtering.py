@@ -25,7 +25,7 @@ import seaborn as sns
 # -----------------------------------------------------------------------------
 
 # Load most recent Iceberg Beacon Database output file
-df_raw = pd.read_csv("C:/Users/CRYO/Documents/paper_2/working_files/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_20210622.csv", index_col=False)
+df_raw = pd.read_csv('D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_20210622.csv', index_col=False)
 
 # Convert to datetime
 df_raw["datetime_data"] = pd.to_datetime(df_raw["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
@@ -98,10 +98,10 @@ for label, group in df.groupby(["beacon_type", "beacon_id"]):
 # Subset the database according to latitude & longitude
 
 # Baffin Bay (whole study area)
-# df3 = df2[(df2['latitude'] >= 50) & (df2['latitude']<=80.5) & (df2['longitude']>=-85) & (df2['longitude']<=-50)]
+#df3 = df2[(df2['latitude'] >= 50) & (df2['latitude']<=80.5) & (df2['longitude']>=-85) & (df2['longitude']<=-50)]
 
 # Talbot Inlet
-df3 = df2[(df2['latitude'] >= 77.4) & (df2['latitude']<=78) & (df2['longitude']>=-78.5) & (df2['longitude']<=-76)]
+df3 = df2[(df2['latitude'] >= 77.5) & (df2['latitude']<=78) & (df2['longitude']>=-78.5) & (df2['longitude']<=-76)]
 
 
 # -----------------------------------------------------------------------------
@@ -179,30 +179,63 @@ df10 = df9[(df9['beacon_type'] != "CALIB_ARGOS") & (df9['beacon_type'] != "BIO")
 # Create dataframe based on variables for corr plot
 df11 = df10[['beacon_id','beacon_type','datetime_data','datetime_transmit','latitude','longitude','distance','azimuth_obs','speed_ms','timedelta','timedelta_s','timedelta_h']].copy()
 
-df11['beacon_id'].unique()
+
+
+# -----------------------------------------------------------------------------
+# Subset dataframe based time period (2011-2019)
+# -----------------------------------------------------------------------------
+
+df12 = df11[(df11['datetime_data'] > "2011-01-01") & (df11['datetime_data'] < "2020-01-01")]
+
+df12['beacon_id'].nunique()
+
 
 # -----------------------------------------------------------------------------
 # Save new filtered dataset as CSV
 # -----------------------------------------------------------------------------
 
 # Save filtered dataframe as CSV to use in other scripts
-df11.to_csv("C:/Users/CRYO/Documents/paper_2/working_files/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_09272022_clean_TALBOT.csv")
+df12.to_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_17032023_talbot.csv")
 
 
-# -----------------------------------------------------------------------------
-# Filter speed outliers
-# -----------------------------------------------------------------------------
-
-# Load most recent Iceberg Beacon Database output file
-df_outliers = pd.read_csv("C:/Users/CRYO/Documents/paper_2/working_files/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_09272022_clean_TALBOT.csv", index_col=False)
-
-# Convert to datetime
-df_outliers["datetime_data"] = pd.to_datetime(df_outliers["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
-
-df_clean = df_outliers[~df_outliers.index.isin([57165, 58165, 56128, 55889, 55965, 55011, 49777, 3813, 38119])]
 
 
-df_clean.to_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_09162022_clean_TALBOT.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # -----------------------------------------------------------------------------
+# # Filter speed outliers
+# # -----------------------------------------------------------------------------
+
+# # Load most recent Iceberg Beacon Database output file
+# df_outliers = pd.read_csv("C:/Users/CRYO/Documents/paper_2/working_files/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_09272022_clean_TALBOT.csv", index_col=False)
+
+# # Convert to datetime
+# df_outliers["datetime_data"] = pd.to_datetime(df_outliers["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
+
+# df_clean = df_outliers[~df_outliers.index.isin([57165, 58165, 56128, 55889, 55965, 55011, 49777, 3813, 38119])]
+
+
+# df_clean.to_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_.csv")
 
 
 

@@ -15,6 +15,7 @@ import seaborn as sns
 import cartopy.feature as cfeature
 import numpy as np
 from scipy import stats
+from sklearn.metrics import r2_score
 
 # -----------------------------------------------------------------------------
 # Paths
@@ -51,7 +52,7 @@ sns.set_palette("turbo")
 # ----------------------------------------------------------------------------
 
 # Load database
-df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_09122022.csv",
+df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv",
     index_col=None,
 )
 
@@ -139,8 +140,8 @@ df_filt = df_filt.loc[(df['Latitude Band'] == '60-65')]
 # ----------------------------------------------------------------------------
 
 # Create dataframe based on variables for corr plot
-df2 = df_filt[['beacon_id', 'datetime_data', 'latitude', 'longitude', 'distance', 'speed_ms', 'seaice_speed_ms', 'azimuth_obs',
-                   'seaice_direction_deg', 'era5_speed', 'era5_direction_deg', 'glorys_speed_ms', 'glorys_direction_deg','Latitude Band']].copy()
+df2 = df[['beacon_id', 'datetime_data', 'latitude', 'longitude', 'distance', 'speed_ms', 'azimuth_obs',
+          'era5_speed', 'era5_direction_deg', 'glorys_speed_ms', 'glorys_direction_deg','Latitude Band']].copy()
 
 df2 = df2.dropna()
 
@@ -174,15 +175,36 @@ sns.heatmap(corr, mask=mask, cmap=cmap,
 
 # Calculate % of iceberg speed vs ERA5 speed
 df3 = df2.loc[(df2["era5_speed"]>1)]
-df3 = df2.loc[(df2["glorys_speed_ms"]>0.05)]
-df3 = df2.loc[(df2["seaice_speed_ms"]>0.01)]
+# df3 = df2.loc[(df2["glorys_speed_ms"]>0.05)]
+# df3 = df2.loc[(df2["seaice_speed_ms"]>0.01)]
 
 
-df3['iceberg_wind_ratio'] = (df3['speed_ms'] / df3['era5_speed'])
-df3['iceberg_ocean_ratio'] = (df3['speed_ms'] / df3['glorys_speed_ms'])
-df3['iceberg_seaice_ratio'] = (df3['speed_ms'] / df3['seaice_speed_ms'])
+df3['iceberg_wind_ratio'] = (df3['speed_ms'] / df3['era5_speed']) * 100
+# df3['iceberg_ocean_ratio'] = (df3['speed_ms'] / df3['glorys_speed_ms'])
+# df3['iceberg_seaice_ratio'] = (df3['speed_ms'] / df3['seaice_speed_ms'])
 
-# df3 = df3.loc[(df3["iceberg_wind_ratio"] <= 2)]
+#df3 = df3.loc[(df3["iceberg_wind_ratio"] <= 2)]
+
+
+df3['iceberg_wind_ratio'].std()
+
+# Plot polynomial regression
+
+x = df3['era5_speed']
+y = df3['iceberg_wind_ratio']
+
+mymodel_1 = np.poly1d(np.polyfit(x,y, 1))
+mymodel_2 = np.poly1d(np.polyfit(x,y, 2))
+mymodel_3 = np.poly1d(np.polyfit(x,y, 3))
+
+
+
+
+
+myline = np.linspace(1, 29, 100)
+
+print(r2_score(y, mymodel_3(x)))
+
 
 params = {'mathtext.default': 'regular' }   
 plt.rcParams.update(params)
@@ -190,30 +212,38 @@ plt.figure(figsize=(6,4))
 ax = sns.lmplot(data = df3,
            x = 'era5_speed',
            y = 'iceberg_wind_ratio',
-           hue = 'beacon_id', # can be latitude_band, beacon_id etc
+           # hue = 'Latitude Band', # can be latitude_band, beacon_id etc
            palette = 'plasma',
            ci=None,
            legend=False,
            fit_reg=False,  # optional
            markers='o',
-           scatter_kws={"s": 6, 'linewidth':0, 'alpha' : 0.7})#.set(title='$R^2 = $' + str("{:.5f}".format(r_value**2)))
+           scatter_kws={"s": 5, 'linewidth':0, 'alpha' : 0.7},
+           line_kws={'color': 'red'})#.set(title='$R^2 = $' + str("{:.5f}".format(r_value**2)))
 plt.margins(x=0.01, y=0)
-plt.axhline(0.02, color='black')
-ax.add_legend(title="Beacon ID", loc="upper left", bbox_to_anchor = (0.4, 0.97))
-ax.set_axis_labels('ERA5 Wind Speed (m $ s ^{-1}$)',"Speed Ratio (Iceberg Speed/Wind Speed)")
+plt.axhline(2, color='black', linestyle='dashed')
+plt.plot(myline, mymodel_1(myline), color='green', label="1st degree:  $ R^{2}$= 0.07")
+plt.plot(myline, mymodel_2(myline), color='red', label="2nd degree: $ R^{2}$= 0.10")
+plt.plot(myline, mymodel_3(myline), color='purple', label="3rd degree:  $ R^{2}$= 0.12")
+# plt.annotate("degree 1: $ R ^{2}$ = 0.07", (27,100), ha='right', va='top')
+# plt.annotate("degree 2: $ R ^{2}$ = 0.10", (27,95), ha='right', va='top')
+# plt.annotate("degree 3: $ R ^{2}$ = 0.12", (27,90), ha='right', va='top')
+plt.legend(frameon=False)
+ax.set_axis_labels('ERA5 Wind Speed (m $ s ^{-1}$)',"Speed Ratio % (Iceberg Speed/Wind Speed)")
+
 
 plt.savefig(
-    path_figures + "davis_wind_iceberg_ratio.png",
+    path_figures + "wind_iceberg_ratio_notalbot_123.png",
     dpi=dpi,
     transparent=False,
-    bbox_inches="tight",
+    bbox_inches="tight"
 )
 
 
 ## Plot xy scatter plots
 
-x = df2['era5_speed']
-y = df2['speed_ms']
+x = df3['era5_speed']
+y = df3['iceberg_wind_ratio']
 
 slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 
@@ -253,25 +283,6 @@ plt.savefig(
     transparent=False,
     bbox_inches="tight",
 )
-
-
-
-
-
-# Define your subplots matrix.
-# In this example the fig has 4 rows and 2 columns
-fig, axes = plt.subplots(11, figsize=(6,12))
-
-# This approach is better than looping through df.cat.unique
-for g, d in df2.groupby('beacon_id'):
-    d.hist(alpha = 0.5, ax=axes, label=g)
-
-
-
-
-
-
-
 
 
 

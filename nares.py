@@ -23,7 +23,10 @@ import numpy as np
 # -----------------------------------------------------------------------------
 
 # Load most recent Iceberg Beacon Database output file
-df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_09122022.csv", index_col=False)
+df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_env_variables_22032023_notalbot.csv", index_col=False)
+
+df["datetime_data"] = pd.to_datetime(
+    df["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
 
 # Load tide data
 tides =  pd.read_csv('D:/Abby/paper_2/tides/webtide_nares_201314.csv', index_col=False)
@@ -173,7 +176,6 @@ plt.savefig(path_figures + "Figure_9_test.png", dpi=dpi, transparent=False, bbox
 
 
 
-
 # -----------------------------------------------------------------------------
 # Tides
 # -----------------------------------------------------------------------------
@@ -200,22 +202,153 @@ tides['tide_direction_heading'].plot()
 tides['tide_direction_heading'] = np.mod(90 - (np.rad2deg(tides['tide_direction'])),360)
 
 
+# -----------------------------------------------------------------------------
+# Hans Island wind plot
+# -----------------------------------------------------------------------------
+
+# 2014-09-25 to 2014-10-10
+
+start_date = '2014-09-25'
+end_date = '2014-10-10'
+
+hans = pd.read_csv("D:/Abby/paper_2/hans/aws02Weather_2014.csv")
+
+df2 = df.loc[(df["beacon_id"] == '2013_300234011242410') & (df['datetime_data'] >= start_date) & (df['datetime_data'] <= end_date)]
+
+# Merge hans island data and iceberg data to do linear regression
+
+hans.index = hans['Date']
+df2.index = df2['datetime_data']
+
+hans = hans.dropna()
+df2.dropna()
+
+merge = pd.merge_asof(
+    left=hans,
+    right=df2,
+    right_index=True,
+    left_index=True,
+    direction='nearest')
+
+
+merge['ResWindDir'].median()
+
+# Convert to datetime
+hans["Date"] = pd.to_datetime(hans["Date"].astype(str), format="%d/%m/%Y %H:%M")
+
+plt.figure(figsize=(6,4))
+ax = merge.plot(x='datetime_data',
+             y='speed_ms',
+             label="Iceberg",
+             color='orange')
+merge.plot(x = 'datetime_data',
+            y = 'MeanWindS',
+            label='Hans Island AWS',
+            color='royalblue',
+            ax=ax)
+merge.plot(x='datetime_data',
+             y='glorys_speed_ms',
+             label='GLORYS',
+             color='purple',
+             ax=ax)
+merge.plot(x='datetime_data',
+             y='era5_speed',
+             label='ERA5',
+             color='mediumvioletred',
+             ax=ax)
+plt.xticks(rotation=45)
+plt.margins(x=0.01, y=0)
+plt.axhline(0.02, color='black')
+ax.set(xlabel='Date', ylabel='Speed (m $s^{-1}$)')
+plt.legend(frameon=False)
+plt.text(("2014-09-26"), 15, "$ R ^{2}$ = 0.56", color='royalblue')
+plt.text(("2014-09-26"), 13.8, "$ R ^{2}$ = 0.48", color='purple')
+plt.text(("2014-09-26"), 12.7, "$ R ^{2}$ = 0.66", color='mediumvioletred')
+
+
+plt.savefig(path_figures + "hans_island_2410.png", dpi=300, transparent=False, bbox_inches='tight')
 
 
 
 
+from scipy import stats
+from sklearn.metrics import r2_score
+
+
+# Linear
+
+x = merge['era5_speed']
+y = merge['speed_ms']
+
+slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+
+
+print("slope:", slope,
+      "\nintercept:", intercept,
+      "\nr value:", r_value**2,
+      "\np value:", p_value,
+      "\np standard error:", std_err)
+
+# Multiple Regression
+
+mymodel = np.poly1d(np.polyfit(x,y, 2))
+
+myline = np.linspace(1, 29, 100)
+
+print(r2_score(y, mymodel(x)))
+
+
+## Wind plot for beacon 8060
+
+import matplotlib.dates as mdates
+myFmt = mdates.DateFormatter('%d')
 
 
 
+start_date = "2016-12-14"
+end_date = "2016-12-21"
+
+df2 = df.loc[(df["beacon_id"] == '2016_300234061768060') & (df['datetime_data'] >= start_date) & (df['datetime_data'] <= end_date)]
+
+plt.figure(figsize=(6,4))
+ax = df2.plot(x='datetime_data',
+             y='speed_ms',
+             label="Iceberg",
+             color='orange')
+df2.plot(x='datetime_data',
+             y='glorys_speed_ms',
+             label='GLORYS',
+             color='purple',
+             ax=ax)
+df2.plot(x='datetime_data',
+             y='era5_speed',
+             label='ERA5',
+             color='mediumvioletred',
+             ax=ax)
+plt.margins(x=0.01, y=0)
+plt.axhline(0.02, color='black')
+ax.set(xlabel='Date', ylabel='Speed (m $s^{-1}$)')
+plt.legend(frameon=False)
+plt.text(("2016-12-15"), 13.8, "$ R ^{2}$ = 0.48", color='purple')
+plt.text(("2016-12-15"), 12.7, "$ R ^{2}$ = 0.66", color='mediumvioletred')
+plt.autofmt_xdate()
 
 
 
+plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=48))
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+ax.tick_params(axis="x", which="major", rotation=45)
 
+x = merge['era5_speed']
+y = merge['speed_ms']
 
+slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 
-
-
-
+print("slope:", slope,
+      "\nintercept:", intercept,
+      "\nr value:", r_value**2,
+      "\np value:", p_value,
+      "\np standard error:", std_err)
 
 
 

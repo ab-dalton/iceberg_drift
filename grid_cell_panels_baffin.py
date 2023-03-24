@@ -103,7 +103,7 @@ grid.to_crs(4326).plot(
 # ----------------------------------------------------------------------------
 
 # Load database
-df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_filtered_08312022_clean.csv",
+df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/Iceberg Beacon Database/iceberg_beacon_database_17032023_no_talbot.csv",
     index_col=None,
 )
 
@@ -131,6 +131,8 @@ seasons = {12: 'Winter',
            11:'Fall'}
 
 df['Season'] = df['month'].apply(lambda x: seasons[x])
+
+df['beacon_id'].nunique()
 
 # Load RGI
 # rgi = gpd.read_file("D:/Abby/paper_2/rgi/rgi60_Arctic_glaciers_3995_simple150.gpkg")
@@ -161,15 +163,13 @@ spatial_joined['beacon_id'].nunique()
 
 # Select season (optional)
 
-joined = spatial_joined.loc[spatial_joined['Season'] == "Winter"]
+joined = spatial_joined.loc[spatial_joined['Season'] == "Spring"]
 
 joined['datetime_data'].min()
 joined['datetime_data'].max()
 
 # Print # of unique beacon IDs in each season
 beacon_count = joined["beacon_id"].nunique()
-
-joined['beacon_type'].nunique()
 
 # Summarize the stats for each attribute in the point layer - speed
 stats_speed = joined.groupby(["index_right"])["speed_ms"].agg(
@@ -225,7 +225,7 @@ merged = merged.dropna()
 
 stats_res_time['diff_days'].max()
 stats_speed['median_speed'].max()
-
+stats_speed['std_speed'].max()
 # -----------------------------------------------------------------------------
 # Prepare quiver plot data
 # -----------------------------------------------------------------------------
@@ -572,7 +572,7 @@ cb.ax.set_ylabel('Residence Time (days)',fontsize=14,rotation=90)
 
 # Save figure
 fig.savefig(
-    path_figures + "winter.png",
+    path_figures + "summer.png",
     dpi=dpi,
     transparent=False,
     bbox_inches="tight",

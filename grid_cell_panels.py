@@ -123,6 +123,8 @@ df = pd.read_csv("D:/Abby/paper_2/Iceberg Beacon Database-20211026T184427Z-001/I
     index_col=None,
 )
 
+df['beacon_id'].unique()
+
 # Convert to datetime
 df["datetime_data"] = pd.to_datetime(
     df["datetime_data"].astype(str), format="%Y-%m-%d %H:%M:%S")
